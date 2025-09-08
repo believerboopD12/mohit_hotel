@@ -7,7 +7,7 @@ import pandas as pd
 import os
 from PIL import Image
 from st_aggrid import AgGrid, GridOptionsBuilder
-from streamlit_carousel import carousel
+from streamlit_extras.carousel import carousel
 
 
 
@@ -614,4 +614,5 @@ elif st.session_state.get("menu") == "Admin":
             st.error("❌ Invalid credentials")
 
     st.stop()
+
 
