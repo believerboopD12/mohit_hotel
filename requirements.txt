@@ -2,5 +2,5 @@ streamlit
 mysql-connector-python
 pandas
 Pillow
-st-aggrid
+streamlit-aggrid
 streamlit-extras
