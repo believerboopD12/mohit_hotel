@@ -3,5 +3,4 @@ mysql-connector-python
 pandas
 Pillow
 st-aggrid
-streamlit-carousel
-
+streamlit-extras
