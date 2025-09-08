@@ -1,3 +1,7 @@
 streamlit
-google-cloud-firestore
+mysql-connector-python
 pandas
+Pillow
+st-aggrid
+streamlit-carousel
+
