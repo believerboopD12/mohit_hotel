@@ -282,9 +282,7 @@ def add_all_to_cart_and_maybe_go_to_payment(navigate_on_success=True):
     return total, True
 
 def display_item(item, price):
-    cols = st.columns([1.5, 4, 3.5])  # Keeps image + layout compact
-
-    # Find image (first try item-specific, fallback to category image)
+    # Get image
     img = images.get(item)
     if not img:
         for cat, items in menu.items():
@@ -292,50 +290,31 @@ def display_item(item, price):
                 img = images.get(cat)
                 break
 
+    qty = st.session_state.quantities.get(item, 0)
+
+    # All in a single row: Image | Name+Price | - qty + 
+    cols = st.columns([1.2, 3.8, 2, 0.7, 0.7])
+
     with cols[0]:
-        if img:
-            st.image(img, width=60)
-        else:
-            st.write("🖼️")
+        st.image(img, width=55)
 
     with cols[1]:
-        st.markdown(f"<b>{item}</b><br>₹{price}", unsafe_allow_html=True)
+        st.markdown(f"**{item}**\n₹{price}", unsafe_allow_html=True)
 
     with cols[2]:
-        qty = st.session_state.quantities.get(item, 0)
-        # Use horizontal layout but fix alignment using HTML/CSS
-        st.markdown("""
-            <style>
-            .qty-container {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-            .qty-btn {
-                font-size: 18px;
-                padding: 4px 10px;
-                border: none;
-                border-radius: 5px;
-            }
-            .qty-val {
-                min-width: 24px;
-                text-align: center;
-                font-size: 18px;
-                font-weight: bold;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; font-size: 18px; margin-top: 12px;'>{qty}</div>", unsafe_allow_html=True)
 
-        # Streamlit native buttons must be used, so align manually
-        c1, c2, c3 = st.columns([1, 1, 1])
-        with c1:
-            if st.button("➖", key=f"dec_{item}"):
-                decrement(item)
-        with c2:
-            st.markdown(f"<div class='qty-val'>{qty}</div>", unsafe_allow_html=True)
-        with c3:
-            if st.button("➕", key=f"inc_{item}"):
-                increment(item)
+    with cols[3]:
+        if st.button("➖", key=f"dec_{item}"):
+            decrement(item)
+
+    with cols[4]:
+        if st.button("➕", key=f"inc_{item}"):
+            increment(item)
+
+
+
+
 
 # --- Main Menu Page ---
 if "quantities" not in st.session_state:
