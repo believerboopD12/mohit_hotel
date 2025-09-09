@@ -282,16 +282,19 @@ def add_all_to_cart_and_maybe_go_to_payment(navigate_on_success=True):
     return total, True
 
 def display_item(item, price):
-    cols = st.columns([1.5, 4, 3.5])  # Adjusted column widths for better mobile layout
-    img = None
-    for cat, items in menu.items():
-        if item in items:
-            img = images.get(cat)
-            break
+    cols = st.columns([1.5, 4, 3.5])  # Keeps image + layout compact
+
+    # Find image (first try item-specific, fallback to category image)
+    img = images.get(item)
+    if not img:
+        for cat, items in menu.items():
+            if item in items:
+                img = images.get(cat)
+                break
 
     with cols[0]:
         if img:
-            st.image(img, width=50)
+            st.image(img, width=60)
         else:
             st.write("🖼️")
 
@@ -300,13 +303,37 @@ def display_item(item, price):
 
     with cols[2]:
         qty = st.session_state.quantities.get(item, 0)
-        bcols = st.columns([1, 1, 1])
-        with bcols[0]:
+        # Use horizontal layout but fix alignment using HTML/CSS
+        st.markdown("""
+            <style>
+            .qty-container {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .qty-btn {
+                font-size: 18px;
+                padding: 4px 10px;
+                border: none;
+                border-radius: 5px;
+            }
+            .qty-val {
+                min-width: 24px;
+                text-align: center;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Streamlit native buttons must be used, so align manually
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
             if st.button("➖", key=f"dec_{item}"):
                 decrement(item)
-        with bcols[1]:
-            st.markdown(f"<div style='text-align:center; font-size:18px; margin-top:6px;'>{qty}</div>", unsafe_allow_html=True)
-        with bcols[2]:
+        with c2:
+            st.markdown(f"<div class='qty-val'>{qty}</div>", unsafe_allow_html=True)
+        with c3:
             if st.button("➕", key=f"inc_{item}"):
                 increment(item)
 
@@ -515,7 +542,7 @@ elif st.session_state.get("menu") == "Confirm Payment":
             st.error(f"Error saving order to DB: {e}")
             st.stop()
 
-        st.success("🙏 Thank you! Your order has been placed successfully.")
+        st.success("🙏 Thank you! Your order has been placed successfully.Please wait for atleast 30 minutes")
         # cleanup
         st.session_state.pop("cart", None)
         st.session_state.pop("user_details", None)
