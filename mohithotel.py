@@ -181,7 +181,9 @@ st.markdown("### 🍲 Popular Dishes")
 carousel(slider_images)
 
 # ------------------ MENU ------------------
+import streamlit as st
 
+# --- Config ---
 images = {
     "Curry": "shipnr.jpg",
     "Roti": "roti.jpg",
@@ -241,6 +243,7 @@ menu = {
 
 MIN_ORDER = 200  # minimum order amount in rupees
 
+# --- Helper Functions ---
 def increment(item):
     st.session_state.quantities[item] = st.session_state.quantities.get(item, 0) + 1
 
@@ -249,25 +252,20 @@ def decrement(item):
         st.session_state.quantities[item] -= 1
 
 def add_all_to_cart_and_maybe_go_to_payment(navigate_on_success=True):
-    """
-    Add selected items from all categories to the cart,
-    return the computed total.
-    """
-    # clear previous cart entries for items that may have been changed
+    # Remove items with zero qty
     for category in menu:
-        for item in menu[category].keys():
-            # remove items with zero qty (if present)
+        for item in menu[category]:
             if item in st.session_state.cart and st.session_state.quantities.get(item, 0) == 0:
                 del st.session_state.cart[item]
 
-    # add/update items with qty > 0
+    # Add/update cart
     for category in menu:
         for item, price in menu[category].items():
             qty = st.session_state.quantities.get(item, 0)
             if qty > 0:
                 st.session_state.cart[item] = {"qty": qty, "price": price}
 
-    # compute total
+    # Compute total
     total = sum(info["qty"] * info["price"] for info in st.session_state.cart.values())
 
     if total < MIN_ORDER:
@@ -276,57 +274,69 @@ def add_all_to_cart_and_maybe_go_to_payment(navigate_on_success=True):
         return total, False
 
     st.success("✅ All selected items added to cart!")
+
     if navigate_on_success:
         st.session_state["menu"] = "Payment"
-        # rerun so Payment page is displayed immediately
         st.stop()
 
     return total, True
 
 def display_item(item, price):
-    cols = st.columns([2, 6, 4])
+    cols = st.columns([1.5, 4, 3.5])  # Adjusted column widths for better mobile layout
     img = None
     for cat, items in menu.items():
         if item in items:
             img = images.get(cat)
             break
+
     with cols[0]:
         if img:
-            st.image(img, width=60)
+            st.image(img, width=50)
         else:
             st.write("🖼️")
+
     with cols[1]:
-        st.markdown(f"**{item}**")
-        st.markdown(f"₹{price}")
+        st.markdown(f"<b>{item}</b><br>₹{price}", unsafe_allow_html=True)
+
     with cols[2]:
         qty = st.session_state.quantities.get(item, 0)
-        btn_cols = st.columns([1, 1, 1])
-        with btn_cols[0]:
+        bcols = st.columns([1, 1, 1])
+        with bcols[0]:
             if st.button("➖", key=f"dec_{item}"):
                 decrement(item)
-        with btn_cols[1]:
-            st.markdown(f"<div style='text-align:center; font-size:20px;'>{qty}</div>", unsafe_allow_html=True)
-        with btn_cols[2]:
+        with bcols[1]:
+            st.markdown(f"<div style='text-align:center; font-size:18px; margin-top:6px;'>{qty}</div>", unsafe_allow_html=True)
+        with bcols[2]:
             if st.button("➕", key=f"inc_{item}"):
                 increment(item)
 
-# ------------------ MENU PAGE ------------------
-if st.session_state.get("menu", "Menu") == "Menu":
+# --- Main Menu Page ---
+if "quantities" not in st.session_state:
+    st.session_state.quantities = {}
+
+if "cart" not in st.session_state:
+    st.session_state.cart = {}
+
+if "menu" not in st.session_state:
+    st.session_state.menu = "Menu"
+
+if st.session_state["menu"] == "Menu":
     st.title("📖 Menu Card")
 
-    # Render all categories/items
     for category, items in menu.items():
-        st.markdown(f"### {category} Items")
+        st.markdown(f"### 🍽️ {category} Items")
         for item, price in items.items():
             display_item(item, price)
+        st.markdown("---")
 
-    # Single add-all button (checks MIN_ORDER and navigates to Payment on success)
+    # Add All Button
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🛒 Add All Items to Cart"):
         add_all_to_cart_and_maybe_go_to_payment(navigate_on_success=True)
 
-    # Cart summary (still useful to show on Menu page)
-    st.markdown("---")
-    st.subheader("🛒 Cart Summary")
+    # Cart Summary
+    st.markdown("----")
+    st.subheader("🧾 Cart Summary")
 
     if not st.session_state.cart:
         st.write("Your cart is empty.")
@@ -335,17 +345,16 @@ if st.session_state.get("menu", "Menu") == "Menu":
         for item, info in st.session_state.cart.items():
             item_total = info["qty"] * info["price"]
             total += item_total
-            st.write(f"{item} x {info['qty']} = ₹{item_total}")
-        st.markdown(f"**Total: ₹{total}**")
+            st.write(f"{item} × {info['qty']} = ₹{item_total}")
+        st.markdown(f"**🧮 Total: ₹{total}**")
 
-        # optional: user can still go to Payment manually if they want
         if st.button("💳 Proceed to Payment"):
-            # re-check minimum before navigating
-            if total <= MIN_ORDER:
+            if total < MIN_ORDER:
                 st.warning(f"Minimum order is ₹{MIN_ORDER}. Please add more items.")
             else:
                 st.session_state["menu"] = "Payment"
                 st.stop()
+
 
 
 
@@ -562,59 +571,89 @@ elif st.session_state.get("menu") == "Admin":
 
     if st.button("Login"):
         if username == admin_user and password == admin_pass:
+            st.session_state["admin_logged_in"] = True  # <-- SET login flag here!
             st.success("✅ Logged in as Admin")
-
-            orders = get_orders()
-            if orders:
-                import pandas as pd
-                from st_aggrid import AgGrid, GridOptionsBuilder
-
-                # Assuming orders include discount_percent and discount_amount in the tuple/list
-                df = pd.DataFrame(orders, columns=[
-                    "ID", "Name", "Mobile", "Address", "Items", "Total", "DateTime", "Discount Percent", "Discount Amount"
-                ])
-
-                # Format items with line breaks for readability
-                df["Items"] = df["Items"].apply(lambda x: x.replace(", ", "\n"))
-
-                # Format monetary columns to 2 decimals for neatness
-                df["Total"] = df["Total"].map(lambda x: f"₹{x:.2f}")
-                df["Discount Amount"] = df["Discount Amount"].map(lambda x: f"₹{x:.2f}")
-                df["Discount Percent"] = df["Discount Percent"].map(lambda x: f"{x}%")
-
-                # Grid options (NO filters/sorting)
-                gb = GridOptionsBuilder.from_dataframe(df)
-                gb.configure_default_column(
-                    wrapText=True,
-                    autoHeight=True,
-                    resizable=True,
-                    sortable=False,
-                    filter=False
-                )
-                gb.configure_column("Items", wrapText=True, autoHeight=True)
-                gb.configure_grid_options(domLayout='autoHeight')  # auto fit grid
-                grid_options = gb.build()
-
-                # Display Grid
-                st.markdown("### 📋 All Orders (Mobile View)")
-                AgGrid(
-                    df,
-                    gridOptions=grid_options,
-                    theme="streamlit",  # Clean and soft theme
-                    allow_unsafe_jscode=False,
-                    fit_columns_on_grid_load=True,
-                    height=500,
-                    use_container_width=True
-                )
-
-                st.caption("👆 Scroll vertically to view all orders clearly.")
-            else:
-                st.info("No orders found.")
         else:
-            st.error("❌ Invalid credentials")
+            st.error("❌ Incorrect username or password")
+
+    # Check login state after the login button
+    if st.session_state.get("admin_logged_in"):
+       
+        orders = get_orders()
+
+        # --- Define column names ---
+        columns = [
+            "id", "name", "mob", "address", "items",
+            "total", "datetime", "discount_percent", "discount_amount"
+        ]
+
+        # --- Convert tuples to dicts ---
+        orders = [dict(zip(columns, order)) for order in orders]
+
+        # --- Search Input ---
+        search_query = st.text_input("🔍 Search by Name or Mobile")
+
+        # --- Filtered Orders ---
+        filtered_orders = orders
+        if search_query:
+            filtered_orders = [
+                order for order in orders
+                if search_query.lower() in order["name"].lower() or search_query in order["mob"]
+            ]
+
+        # --- Sort by datetime (latest first) ---
+        filtered_orders = sorted(filtered_orders, key=lambda x: x["datetime"], reverse=True)
+
+        # --- Pagination Setup ---
+        page_size = 10
+        total_orders = len(filtered_orders)
+        total_pages = max((total_orders + page_size - 1) // page_size, 1)
+
+
+        if "page" not in st.session_state:
+            st.session_state.page = 1
+
+        # --- Navigation Buttons ---
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            if st.button("⬅️ Previous", disabled=st.session_state.page <= 1):
+                st.session_state.page -= 1
+        with col3:
+            if st.button("Next ➡️", disabled=st.session_state.page >= total_pages):
+                st.session_state.page += 1
+        with col2:
+            st.markdown(
+                f"<center><b>Page {st.session_state.page} of {total_pages}</b></center>",
+                unsafe_allow_html=True,
+            )
+
+        # --- Paginate Orders ---
+        start_idx = (st.session_state.page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_orders = filtered_orders[start_idx:end_idx]
+
+        # --- Display Orders ---
+        if paginated_orders:
+            for idx, order in enumerate(paginated_orders, start=start_idx + 1):
+                with st.container():
+                    st.markdown("----")
+                    st.markdown(f"### 🧾 Order #{idx}")
+                    st.write(f"👤 **Name:** {order['name']}")
+                    st.write(f"📱 **Mobile:** {order['mob']}")
+                    st.write(f"🏠 **Address:** {order['address']}")
+                    st.write("🛒 **Items Ordered:**")
+                    st.code(order['items'].replace(", ", "\n"), language="")
+
+                    original_total = order["total"] + order["discount_amount"]
+                    st.write(f"💰 **Original Total:** ₹{original_total:.2f}")
+                    st.write(f"🏷️ **Discount:** {order['discount_percent']}%")
+                    st.write(f"💸 **Discount Amount:** ₹{order['discount_amount']:.2f}")
+                    st.write(f"✅ **Total to Pay:** ₹{order['total']:.2f}")
+                    st.write(f"📍 **DateTime:** {order['datetime']}")
+        else:
+            st.warning("🚫 No orders found.")
+
+
 
     st.stop()
-
-
-
 
